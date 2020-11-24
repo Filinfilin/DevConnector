@@ -3,7 +3,8 @@ const router = express.Router();
 const auth = require('../../middleware/auth');
 const Profile = require('../../models/Profile');
 const validator = require('express-validator')
-const {check, validationResult} = require('express-validator')
+const {check, validationResult} = require('express-validator');
+const { find } = require('../../models/Profile');
 
 //@route GET api/profile/me
 //@desc get curent user profile
@@ -26,9 +27,11 @@ router.get('/me', auth, async (req, res) => {
         console.error(err.message)
         res.status(500).send('server error from profile')
     }});
+
     //@route POST api/profile
     //@desc create or update user profile
     //@access private
+    
 router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
                             check('skills', 'skills is required').not().isEmpty()
                             ]],
@@ -74,7 +77,7 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
        try{
             let profile = await Profile.findOne({user: req.user.id})
             if(profile){
-    //update profile
+        //update profile
                 profile = await Profile.findOneAndUpdate(
                      {user: req.user.id},
                      {$set: profileFields},
@@ -83,7 +86,7 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
                     return res.json(profile)
             }
 
-    // create profile
+        // create profile
             profile = new Profile(profileFields)
 
             await profile.save()
@@ -95,5 +98,36 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
     }
 
     })
+
+    //@route POST api/profile
+    //@desc get all profiles
+    //@access public
+
+router.get('/', async(req, res)=> {
+    try {
+        const profiles = await Profile.find().populate("user", ["name", "avatar"])
+        res.json(profiles)
+    } catch (err) {
+        console.error(err.message)
+        res.status(500).send('Server error from get all profiles')
+    }
+});
+
+    //@route GET api/profile/user/:user_id
+    //@desc get all profiles
+    //@access public
+
+router.get('/user/:user_id', async(req, res)=> {
+    try {
+        const profile = await Profile.findOne({user: req.params.user_id}).populate("user", ["name", "avatar"])
+        if(!profile) res.status(400).json({msg: 'there is no any matched user'})
+        res.json(profile)
+    } catch (err) {
+        console.error(err.message)
+        res.status(500).send('Server error from get user by user id')
+    }
+})
+
+
 
 module.exports = router;
