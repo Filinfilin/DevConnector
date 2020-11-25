@@ -5,6 +5,8 @@ const Profile = require('../../models/Profile');
 const validator = require('express-validator')
 const {check, validationResult} = require('express-validator');
 const { find } = require('../../models/Profile');
+const User = require('../../models/User')
+
 
 //@route GET api/profile/me
 //@desc get curent user profile
@@ -67,14 +69,14 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
         if(skills) {
             profileFields.skills = skills.split(',').map(skill => skill.trim())
         }
-       profileFields.social = {}
-       if(youtube) profileFields.social.youtube = youtube
-       if(twiter) profileFields.social.twiter = twiter
-       if(facebook) profileFields.social.facebook = facebook
-       if(instagram) profileFields.social.instagram = instagram 
-       if (linkedin) profileFields.social.linkedin = linkedin
+        profileFields.social = {}
+        if(youtube) profileFields.social.youtube = youtube
+        if(twiter) profileFields.social.twiter = twiter
+        if(facebook) profileFields.social.facebook = facebook
+        if(instagram) profileFields.social.instagram = instagram 
+        if (linkedin) profileFields.social.linkedin = linkedin
 
-       try{
+           try{
             let profile = await Profile.findOne({user: req.user.id})
             if(profile){
         //update profile
@@ -120,14 +122,36 @@ router.get('/', async(req, res)=> {
 router.get('/user/:user_id', async(req, res)=> {
     try {
         const profile = await Profile.findOne({user: req.params.user_id}).populate("user", ["name", "avatar"])
-        if(!profile) res.status(400).json({msg: 'there is no any matched user'})
+        if(!profile) return res.status(400).json({msg: 'there is no any matched user'})
         res.json(profile)
     } catch (err) {
+        if(err.kind === 'ObjectId'){
+            return res.status(400).json({msg: 'there is no any matched user'})
+        }
         console.error(err.message)
         res.status(500).send('Server error from get user by user id')
     }
 })
 
+    //@route DELETE api/profile/user/:user_id
+    //@desc delete profile and posts
+    //@access public
 
+    router.delete('/',auth, async(req, res)=> {
+
+        try {
+            //find and remove user
+            await User.findOneAndRemove({_id: req.user.id})
+            //find and remove profile
+            await Profile.findOneAndRemove({user: req.user.id})
+
+            res.json({msg: "The user has been deleted"})
+
+        } catch (err) {
+            console.error(err.message)
+            res.status(500).send('Server error from get all profiles')
+        }
+    });
+    
 
 module.exports = router;
