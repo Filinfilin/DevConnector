@@ -4,7 +4,7 @@ const auth = require('../../middleware/auth');
 const Profile = require('../../models/Profile');
 const validator = require('express-validator')
 const {check, validationResult} = require('express-validator');
-const { find } = require('../../models/Profile');
+const { find, findOne } = require('../../models/Profile');
 const User = require('../../models/User')
 
 
@@ -95,8 +95,8 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
             res.json(profile)
 
        }catch(err){
-        console.error(err.message);
-        res.status(500).send('server error from profile update')
+            console.error(err.message);
+            res.status(500).send('server error from profile update')
     }
 
     })
@@ -107,11 +107,11 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
 
 router.get('/', async(req, res)=> {
     try {
-        const profiles = await Profile.find().populate("user", ["name", "avatar"])
-        res.json(profiles)
+            const profiles = await Profile.find().populate("user", ["name", "avatar"])
+            res.json(profiles)
     } catch (err) {
-        console.error(err.message)
-        res.status(500).send('Server error from get all profiles')
+            console.error(err.message)
+            res.status(500).send('Server error from get all profiles')
     }
 });
 
@@ -121,15 +121,15 @@ router.get('/', async(req, res)=> {
 
 router.get('/user/:user_id', async(req, res)=> {
     try {
-        const profile = await Profile.findOne({user: req.params.user_id}).populate("user", ["name", "avatar"])
-        if(!profile) return res.status(400).json({msg: 'there is no any matched user'})
-        res.json(profile)
+            const profile = await Profile.findOne({user: req.params.user_id}).populate("user", ["name", "avatar"])
+            if(!profile) return res.status(400).json({msg: 'there is no any matched user'})
+            res.json(profile)
     } catch (err) {
-        if(err.kind === 'ObjectId'){
-            return res.status(400).json({msg: 'there is no any matched user'})
-        }
-        console.error(err.message)
-        res.status(500).send('Server error from get user by user id')
+            if(err.kind === 'ObjectId'){
+                return res.status(400).json({msg: 'there is no any matched user'})
+            }
+            console.error(err.message)
+            res.status(500).send('Server error from get user by user id')
     }
 })
 
@@ -152,6 +152,51 @@ router.get('/user/:user_id', async(req, res)=> {
             res.status(500).send('Server error from get all profiles')
         }
     });
+
+    //@route PUT api/profile/experience
+    //@desc ad proile experience
+    //@access private
+
+    router.put('/experience', [auth,[
+            check('title', 'title is required').not().isEmpty(),
+            check('company', 'company is required').not().isEmpty(),
+            check('from', 'from is required').not().isEmpty()
+    ]], async(req, res)=>{
+            const errors = validationResult(req)
+            if(!errors.isEmpty()){
+            return res.status(400).json({errors: errors.array()})
+        }
+        const {
+            title,
+            company,
+            location,
+            from,
+            to,
+            current,
+            description
+        } = req.body
+
+        const newExp = {
+            title,
+            company,
+            location,
+            from,
+            to,
+            current,
+            description
+        }
+        try {
+            const profile = await findOne({user: req.user.id})
+            profile.experince.unshift(newExp)
+            await profile.save()
+            res.json(profile)
+        } catch (error) {
+            console.errors(err.message)
+            res.status(500).send('server error from update experience')
+        }
+    })
+
+
     
 
 module.exports = router;
