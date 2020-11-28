@@ -3,9 +3,12 @@ const router = express.Router();
 const auth = require('../../middleware/auth');
 const Profile = require('../../models/Profile');
 const validator = require('express-validator')
-const {check, validationResult} = require('express-validator');
+const {check, validationResult, sanitizeBody} = require('express-validator');
 const { find, findOne } = require('../../models/Profile');
-const User = require('../../models/User')
+const User = require('../../models/User');
+const request = require("request");
+const config = require("config");
+const { response } = require('express');
 
 
 //@route GET api/profile/me
@@ -15,15 +18,11 @@ const User = require('../../models/User')
 
 router.get('/me', auth, async (req, res) => {
     try{
-
         const profile = await (await Profile.findOne({user: req.user.id})).populate('user', ['name','avatar'])
-
         if(!profile){
             return res.status(400).json({msg: 'there si no profile for this user'})
         }
-
         res.json(profile)
-
     }
     catch(err){
         console.error(err.message)
@@ -34,8 +33,9 @@ router.get('/me', auth, async (req, res) => {
     //@desc create or update user profile
     //@access private
     
-router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
-                            check('skills', 'skills is required').not().isEmpty()
+router.post('/', [auth,[
+    check('status','Status is required').not().isEmpty(),
+    check('skills', 'skills is required').not().isEmpty()
                             ]],
     async (req,res)=>{
         const errors = validationResult(req);
@@ -90,7 +90,6 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
 
         // create profile
             profile = new Profile(profileFields)
-
             await profile.save()
             res.json(profile)
 
@@ -98,8 +97,7 @@ router.post('/', [auth,[check('status','Status is required').not().isEmpty(),
             console.error(err.message);
             res.status(500).send('server error from profile update')
     }
-
-    })
+})
 
     //@route POST api/profile
     //@desc get all profiles
@@ -137,7 +135,7 @@ router.get('/user/:user_id', async(req, res)=> {
     //@desc delete profile and posts
     //@access public
 
-    router.delete('/',auth, async(req, res)=> {
+router.delete('/',auth, async(req, res)=> {
 
         try {
             //find and remove user
@@ -151,7 +149,7 @@ router.get('/user/:user_id', async(req, res)=> {
             console.error(err.message)
             res.status(500).send('Server error from get all profiles')
         }
-    });
+});
 
     //@route PUT api/profile/experience
     //@desc add proile experience
@@ -194,7 +192,7 @@ router.put('/experience', [auth,[
             console.error(err.message)
             res.status(500).send('server error from update experience')
         }
-    })
+ })
 
     //@route DELETE api/profile/experience
     //@desc delete proile experience
@@ -214,7 +212,7 @@ router.delete('/experience/:exp_id',auth, async(req, res)=>{
             console.error(err.message)
             res.status(500).send('server error from delete experience')
         }
-    })
+})
 
      //@route PUT api/profile/education
     //@desc update proile education
@@ -258,11 +256,12 @@ router.put('/education', [auth,[
             console.error(err.message)
             res.status(500).send('server error from update education')
         }
-    })
+})
 
-     //@route DELETE api/profile/education
+    //@route DELETE api/profile/education
     //@desc delete proile education
     //@access private
+
 router.delete('/education/:ed_id',auth, async(req, res)=>{
 
         try {
@@ -277,6 +276,34 @@ router.delete('/education/:ed_id',auth, async(req, res)=>{
             console.error(err.message)
             res.status(500).send('server error from delete education')
         }
+})
+
+    //@route DELETE api/profile/education
+    //@desc delete proile education
+    //@access private
+router.get('/github/:username', async (req, res) => {
+    try { 
+
+        const options = await {
+            uri: `https://api.github.com/users/${req.params.username}/repos?per_page=5&sort=created:asc&client_id=${config.get('githubClientId')}&client_secret=${config.get('githuClientScret')}`,
+            method: 'GET',
+            headers: {'user-agent': 'node.js'}
+        }  
+
+        request(options,(err, response, body)=>{
+            
+            if(response.statusCode !== 200){
+                res.status(404).json({msg: 'No Github Profile found'})
+            }
+            res.json(JSON.parse(body))
+        })  
+
+    } catch (err) {
+        console.error(err.message)
+        response.status(500).send("server error from gh get request")
+        
+        }
     })
+
 
 module.exports = router;
