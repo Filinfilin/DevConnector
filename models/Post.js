@@ -41,4 +41,4 @@ likes:[{
 
 })
 
-module.exports = Post = mongusee.model('post', PostSchema)
+module.exports = Post = mongoose.model('post', PostSchema)
